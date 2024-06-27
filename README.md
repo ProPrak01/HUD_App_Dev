@@ -49,7 +49,7 @@ The following dependencies were used in the project:
 Dev->
 
 
-<img src="images/dev.png" width="600">
+![](images/dev.png)
 <img src="images/1.PNG" width="200">
 <img src="images/2.PNG" width="200">
 <img src="images/3.PNG" width="200">
