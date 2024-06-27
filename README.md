@@ -48,11 +48,10 @@ The following dependencies were used in the project:
 
 Dev->
 ![](images/dev.png)
-![](images/1.PNG)
-![](images/2.PNG)
-![](images/3.PNG)
-![](images/4.PNG)
-
+<img src="images/1.PNG" width="400">
+<img src="images/2.PNG" width="400">
+<img src="images/3.PNG" width="400">
+<img src="images/4.PNG" width="400">
 
 
 # Navigation Methodology and API Description
