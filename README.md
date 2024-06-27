@@ -47,7 +47,9 @@ The following dependencies were used in the project:
 ## Dev Preview:
 
 Dev->
-<img src="images/dev.png" width="400">
+
+
+<img src="images/dev.png" width="600">
 <img src="images/1.PNG" width="200">
 <img src="images/2.PNG" width="200">
 <img src="images/3.PNG" width="200">
