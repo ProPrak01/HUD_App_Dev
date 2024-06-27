@@ -47,10 +47,13 @@ The following dependencies were used in the project:
 ## Dev Preview:
 
 Dev->
-![](images/guide.png)
-![](images/game.png)
-![](images/questionInput.png)
-![](images/admin.png)
+![](images/dev.png)
+![](images/1.png)
+![](images/2.png)
+![](images/3.png)
+![](images/4.png)
+
+
 
 # Navigation Methodology and API Description
 ## Navigation Methodology
