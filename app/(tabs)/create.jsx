@@ -1,20 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, TextInput, Button } from 'react-native';
-import MapView, { Polyline } from 'react-native-maps';
-import * as Location from 'expo-location';
-import axios from 'axios';
+import React, { useState, useEffect, useRef } from "react";
+import { StyleSheet, View, TextInput, Button } from "react-native";
+import MapView, { Polyline } from "react-native-maps";
+import * as Location from "expo-location";
+import axios from "axios";
 
 const Create = () => {
   const [region, setRegion] = useState(null);
   const [routeCoordinates, setRouteCoordinates] = useState([]);
-  const [destination, setDestination] = useState('');
+  const [destination, setDestination] = useState("");
   const mapRef = useRef(null);
 
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('Permission to access location was denied');
+      if (status !== "granted") {
+        console.log("Permission to access location was denied");
         return;
       }
 
@@ -32,7 +32,7 @@ const Create = () => {
   const getRoute = async () => {
     if (region) {
       const origin = `${region.latitude},${region.longitude}`;
-      const apiKey = 'AIzaSyB0zs1nX0J0-gzA0UybHdVF2DLQCtr-K-k';
+      const apiKey = "AIzaSyB0zs1nX0J0-gzA0UybHdVF2DLQCtr-K-k";
 
       try {
         const response = await axios.get(
@@ -113,21 +113,21 @@ const Create = () => {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    justifyContent: "flex-end",
+    alignItems: "center",
   },
   map: {
     ...StyleSheet.absoluteFillObject,
   },
   searchBox: {
-    position: 'absolute',
+    position: "absolute",
     top: 40,
-    width: '90%',
-    flexDirection: 'row',
-    backgroundColor: 'white',
+    width: "90%",
+    flexDirection: "row",
+    backgroundColor: "white",
     borderRadius: 5,
     padding: 10,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
     shadowRadius: 2,
