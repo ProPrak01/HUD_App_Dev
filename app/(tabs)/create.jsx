@@ -1,14 +1,53 @@
 import React, { useState, useEffect, useRef } from "react";
-import { StyleSheet, View, TextInput, Button } from "react-native";
-import MapView, { Polyline } from "react-native-maps";
+import { StyleSheet, View, TextInput, Button, Image, Text } from "react-native";
+import MapView, { Polyline, Marker, Callout } from "react-native-maps";
 import * as Location from "expo-location";
 import axios from "axios";
+
+const DirectionMarker = ({ coordinate, maneuver, distance }) => {
+  const getArrowImage = (maneuver) => {
+    switch (maneuver) {
+      case "turn-slight-left":
+        return require("../../assets/nav/turn-left.png");
+      case "turn-slight-right":
+        return require("../../assets/nav/turn-right.png");
+      case "turn-left":
+        return require("../../assets/nav/turn-hard-left.png");
+      case "turn-right":
+        return require("../../assets/nav/turn-hard-right.png");
+      case "straight":
+        return require("../../assets/nav/straight.png");
+      default:
+        return require("../../assets/nav/null.png");
+    }
+  };
+
+  return (
+    <Marker coordinate={coordinate}>
+      <Image source={getArrowImage(maneuver)} style={{ width: 30, height: 30 }} />
+      <Callout>
+        <View>
+          <Text>{maneuver}</Text>
+          <Text>{distance}</Text>
+        </View>
+      </Callout>
+    </Marker>
+  );
+};
 
 const Create = () => {
   const [region, setRegion] = useState(null);
   const [routeCoordinates, setRouteCoordinates] = useState([]);
-  const [destination, setDestination] = useState("");
+  const [destination, setDestination] = useState(null);
+  const [destinationInput, setDestinationInput] = useState("");
   const mapRef = useRef(null);
+  const [stepPoints, setStepPoints] = useState([]);
+
+  const handleMapPress = (e) => {
+    const { latitude, longitude } = e.nativeEvent.coordinate;
+    setDestination({ latitude, longitude });
+    setDestinationInput(`${latitude},${longitude}`);
+  };
 
   useEffect(() => {
     (async () => {
@@ -30,16 +69,26 @@ const Create = () => {
   }, []);
 
   const getRoute = async () => {
-    if (region) {
+    if (region && destinationInput) {
       const origin = `${region.latitude},${region.longitude}`;
-      const apiKey = "AIzaSyB0zs1nX0J0-gzA0UybHdVF2DLQCtr-K-k";
+      const final = destinationInput;
+      const apiKey = "AIzaSyAjHLF4WJrkfOMBCi-Hdnit7QC_fpepzSY";
 
       try {
         const response = await axios.get(
-          `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}`
+          `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${final}&key=${apiKey}`
         );
-        const points = decode(response.data.routes[0].overview_polyline.points);
+        const steps = response.data.routes[0].legs[0].steps;
+        const points = steps.flatMap((step) => decode(step.polyline.points));
         setRouteCoordinates(points);
+
+        const stepPoints = steps.map((step) => ({
+          start_location: step.start_location,
+          end_location: step.end_location,
+          maneuver: step.maneuver,
+          distance: step.distance,
+        }));
+        setStepPoints(stepPoints);
       } catch (error) {
         console.error(error);
       }
@@ -93,16 +142,29 @@ const Create = () => {
           style={styles.map}
           initialRegion={region}
           showsUserLocation
+          onPress={handleMapPress}
         >
           <Polyline coordinates={routeCoordinates} strokeWidth={5} />
+          {destination && <Marker coordinate={destination} />}
+          {stepPoints.map((step, index) => (
+            <DirectionMarker
+              key={index}
+              coordinate={{
+                latitude: step.start_location.lat,
+                longitude: step.start_location.lng,
+              }}
+              maneuver={step.maneuver}
+              distance={step.distance.text}
+            />
+          ))}
         </MapView>
       )}
       <View style={styles.searchBox}>
         <TextInput
           style={styles.input}
           placeholder="Enter destination"
-          value={destination}
-          onChangeText={setDestination}
+          value={destinationInput}
+          onChangeText={(text) => setDestinationInput(text)}
         />
         <Button title="Get Route" onPress={getRoute} />
       </View>
@@ -121,11 +183,13 @@ const styles = StyleSheet.create({
   },
   searchBox: {
     position: "absolute",
-    top: 40,
+    top: 70,
     width: "90%",
     flexDirection: "row",
-    backgroundColor: "white",
-    borderRadius: 5,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#555",
     padding: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
