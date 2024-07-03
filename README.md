@@ -47,12 +47,15 @@ The following dependencies were used in the project:
 ## Dev Preview:
 
 Dev->
+
+
 ![](images/dev.png)
 <img src="images/1.PNG" width="200">
 <img src="images/2.PNG" width="200">
 <img src="images/3.PNG" width="200">
 <img src="images/4.PNG" width="200">
-
+<img src="images/auth.jpg" width="200">
+<img src="images/auth2.jpg" width="200">
 
 # Navigation Methodology and API Description
 ## Navigation Methodology
