@@ -1,206 +1,179 @@
-import React, { useState, useEffect, useRef } from "react";
-import { StyleSheet, View, TextInput, Button, Image, Text } from "react-native";
-import MapView, { Polyline, Marker, Callout } from "react-native-maps";
-import * as Location from "expo-location";
-import axios from "axios";
+import React, { useEffect, useState } from "react";
+import base64 from "base-64";
 
-const DirectionMarker = ({ coordinate, maneuver, distance }) => {
-  const getArrowImage = (maneuver) => {
-    switch (maneuver) {
-      case "turn-slight-left":
-        return require("../../assets/nav/turn-left.png");
-      case "turn-slight-right":
-        return require("../../assets/nav/turn-right.png");
-      case "turn-left":
-        return require("../../assets/nav/turn-hard-left.png");
-      case "turn-right":
-        return require("../../assets/nav/turn-hard-right.png");
-      case "straight":
-        return require("../../assets/nav/straight.png");
-      default:
-        return require("../../assets/nav/null.png");
+import {
+  PermissionsAndroid,
+  Platform,
+  View,
+  Text,
+  Button,
+  FlatList,
+  NativeEventEmitter,
+} from "react-native";
+import { BleManager, Device } from "react-native-ble-plx";
+import { NativeModules } from "react-native";
+
+const Create = () => {
+  // const manager = new BleManager();
+  //const eventEmitter = new NativeEventEmitter(NativeModules.BleManager);
+  const [devices, setDevices] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [connectedDevice, setConnectedDevice] = useState(false);
+  let bleManager = new BleManager();
+  const Base64 = {
+    encode: (input) => base64.encode(input),
+    decode: (input) => base64.decode(input),
+  };
+  useEffect(() => {
+    requestBluetoothPermission();
+
+    return () => {
+      stopScan();
+      bleManager.destroy();
+    };
+  }, []);
+
+  const requestBluetoothPermission = async () => {
+    if (Platform.OS === "android") {
+      const granted = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+      ]);
+
+      if (
+        granted["android.permission.ACCESS_FINE_LOCATION"] !== "granted" ||
+        granted["android.permission.BLUETOOTH_SCAN"] !== "granted" ||
+        granted["android.permission.BLUETOOTH_CONNECT"] !== "granted"
+      ) {
+        console.error("Required permissions not granted!");
+      }
     }
   };
 
-  return (
-    <Marker coordinate={coordinate}>
-      <Image source={getArrowImage(maneuver)} style={{ width: 30, height: 30 }} />
-      <Callout>
-        <View>
-          <Text>{maneuver}</Text>
-          <Text>{distance}</Text>
-        </View>
-      </Callout>
-    </Marker>
-  );
-};
+  const startScan = () => {
+    setScanning(true);
+    setDevices([]); // Clear the devices list before starting a new scan
+    bleManager.startDeviceScan(null, null, (error, device) => {
+      if (error) {
+        console.error("Error scanning:", error);
+        return;
+      }
+      if (device) {
+        setDevices((prevDevices) => {
+          // Check if the device is already in the list
+          const deviceExists = prevDevices.some((d) => d.id === device.id);
 
-const Create = () => {
-  const [region, setRegion] = useState(null);
-  const [routeCoordinates, setRouteCoordinates] = useState([]);
-  const [destination, setDestination] = useState(null);
-  const [destinationInput, setDestinationInput] = useState("");
-  const mapRef = useRef(null);
-  const [stepPoints, setStepPoints] = useState([]);
+          // Only add the device if it doesn't already exist
+          if (!deviceExists) {
+            return [...prevDevices, device];
+          }
 
-  const handleMapPress = (e) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
-    setDestination({ latitude, longitude });
-    setDestinationInput(`${latitude},${longitude}`);
+          // If the device already exists, return the previous array unchanged
+          return prevDevices;
+        });
+      }
+    });
   };
 
-  useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        console.log("Permission to access location was denied");
+  const stopScan = () => {
+    setScanning(false);
+    bleManager.stopDeviceScan();
+  };
+
+  const connectToDevice = async (device) => {
+    try {
+      const connectedDevice = await device.connect();
+      setConnectedDevice(connectedDevice);
+
+      // Discover services and characteristics
+      const discoveredDevice =
+        await connectedDevice.discoverAllServicesAndCharacteristics();
+
+      // You might want to save the discovered services and characteristics
+      setConnectedDevice(discoveredDevice);
+
+      console.log("Connected to", discoveredDevice.name);
+    } catch (error) {
+      console.error("Error connecting to device:", error);
+    }
+  };
+  const sendDataToESP32 = async (data) => {
+    if (!connectedDevice) {
+      console.error("No device connected");
+      return;
+    }
+
+    try {
+      // Replace these UUIDs with your ESP32's service and characteristic UUIDs
+      const serviceUUID = "YOUR_SERVICE_UUID";
+      const characteristicUUID = "YOUR_CHARACTERISTIC_UUID";
+
+      const service = await connectedDevice
+        .services()
+        .then((services) =>
+          services.find((service) => service.uuid === serviceUUID),
+        );
+
+      if (!service) {
+        console.error("Service not found");
         return;
       }
 
-      let location = await Location.getCurrentPositionAsync({});
-      const initialRegion = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      };
-      setRegion(initialRegion);
-    })();
-  }, []);
-
-  const getRoute = async () => {
-    if (region && destinationInput) {
-      const origin = `${region.latitude},${region.longitude}`;
-      const final = destinationInput;
-      const apiKey = "AIzaSyAjHLF4WJrkfOMBCi-Hdnit7QC_fpepzSY";
-
-      try {
-        const response = await axios.get(
-          `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${final}&key=${apiKey}`
+      const characteristic = await service
+        .characteristics()
+        .then((characteristics) =>
+          characteristics.find((c) => c.uuid === characteristicUUID),
         );
-        const steps = response.data.routes[0].legs[0].steps;
-        const points = steps.flatMap((step) => decode(step.polyline.points));
-        setRouteCoordinates(points);
 
-        const stepPoints = steps.map((step) => ({
-          start_location: step.start_location,
-          end_location: step.end_location,
-          maneuver: step.maneuver,
-          distance: step.distance,
-        }));
-        setStepPoints(stepPoints);
-      } catch (error) {
-        console.error(error);
+      if (!characteristic) {
+        console.error("Characteristic not found");
+        return;
       }
+
+      // Convert the data to Base64 encoding
+      const dataBase64 = Base64.encode(data);
+
+      // Write the data to the characteristic
+      await characteristic.writeWithResponse(dataBase64);
+      console.log("Data sent successfully");
+    } catch (error) {
+      console.error("Error sending data:", error);
     }
   };
 
-  const decode = (t, e) => {
-    let d = [],
-      n = 0,
-      l = 0,
-      r = 0,
-      h = 0,
-      i = 0,
-      a = 0;
-
-    while (i < t.length) {
-      let o,
-        u = 0,
-        s = 0;
-
-      do {
-        o = t.charCodeAt(i++) - 63;
-        u |= (31 & o) << s;
-        s += 5;
-      } while (o >= 32);
-
-      n += u & 1 ? ~(u >> 1) : u >> 1;
-
-      s = 0;
-      u = 0;
-
-      do {
-        o = t.charCodeAt(i++) - 63;
-        u |= (31 & o) << s;
-        s += 5;
-      } while (o >= 32);
-
-      l += u & 1 ? ~(u >> 1) : u >> 1;
-
-      d[r++] = { latitude: n * 1e-5, longitude: l * 1e-5 };
-    }
-
-    return d;
-  };
+  const renderDeviceItem = ({ item }) => (
+    <View style={{ padding: 10 }}>
+      <Text>{item.name || "Unnamed Device"}</Text>
+      <Text>{item.id}</Text>
+      <Text>{item.rssi}</Text>
+      <Button
+        title="Connect"
+        disabled={!!(connectedDevice && connectedDevice.id === item.id)}
+        onPress={() => connectToDevice(item)}
+      />
+    </View>
+  );
 
   return (
-    <View style={styles.container}>
-      {region && (
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          initialRegion={region}
-          showsUserLocation
-          onPress={handleMapPress}
-        >
-          <Polyline coordinates={routeCoordinates} strokeWidth={5} />
-          {destination && <Marker coordinate={destination} />}
-          {stepPoints.map((step, index) => (
-            <DirectionMarker
-              key={index}
-              coordinate={{
-                latitude: step.start_location.lat,
-                longitude: step.start_location.lng,
-              }}
-              maneuver={step.maneuver}
-              distance={step.distance.text}
-            />
-          ))}
-        </MapView>
-      )}
-      <View style={styles.searchBox}>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter destination"
-          value={destinationInput}
-          onChangeText={(text) => setDestinationInput(text)}
-        />
-        <Button title="Get Route" onPress={getRoute} />
-      </View>
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <FlatList
+        data={devices}
+        renderItem={renderDeviceItem}
+        keyExtractor={(item) => item.id}
+        style={{ marginTop: 20 }}
+      />
+      <Button
+        title={scanning ? "Stop Scanning" : "Start Scanning"}
+        onPress={() => (scanning ? stopScan() : startScan())}
+      />
+      <Button
+        title="Send Data to ESP32"
+        onPress={() => sendDataToESP32("Hello ESP32!")}
+        disabled={!connectedDevice}
+      />
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  searchBox: {
-    position: "absolute",
-    top: 70,
-    width: "90%",
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: "#555",
-    padding: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  input: {
-    flex: 1,
-    padding: 0,
-  },
-});
 
 export default Create;

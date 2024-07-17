@@ -12,25 +12,45 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "package":"com.aora.appwrite"
+      "package": "com.aora.appwrite",
+      "bundleIdentifier": "com.android.hudApp"
     },
     "android": {
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAjHLF4WJrkfOMBCi-Hdnit7QC_fpepzSY"
+        }
+      },
+      "permissions": [
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT",
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff",
-        "package":"com.aora.android"
-      }
+        "package": "com.aora.android"
+      },
+      "package": "com.android.hudApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": true,
+          "modes": ["peripheral", "central"],
+          "bluetoothAlwaysPermission": "Allow hud to connect to bluetooth devices"
+        }
+      ]
     ]
   }
 }

@@ -1,13 +1,17 @@
-import {  Text, View } from 'react-native'
-import React from 'react'
+import React, { useEffect, useState } from "react";
+import { useGlobalContext } from "../../context/GlobalProvider";
+import { View, Text, FlatList, Image, RefreshControl } from "react-native";
 
 const Profile = () => {
+  const { user } = useGlobalContext();
+
   return (
-    <View className="flex-1 items-center justify-center bg-">
-      <Text >Opened up the profille bro</Text>
-    </View> 
-  )
-}
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <Text className="text-2xl font-psemibold text-gray-500">
+        {user.username}
+      </Text>
+    </View>
+  );
+};
 
-export default Profile
-
+export default Profile;
