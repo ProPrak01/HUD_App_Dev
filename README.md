@@ -47,7 +47,7 @@ The following dependencies were used in the project:
 ## Dev Preview:
 
 Dev->
-
+(the following images are old and not updated yet)
 
 ![](images/dev.png)
 <img src="images/1.PNG" width="200">
