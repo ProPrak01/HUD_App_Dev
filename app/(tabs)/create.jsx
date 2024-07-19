@@ -1,179 +1,172 @@
-import React, { useEffect, useState } from "react";
-import base64 from "base-64";
-
+import React, { useState, useEffect } from "react";
 import {
-  PermissionsAndroid,
-  Platform,
   View,
   Text,
-  Button,
-  FlatList,
-  NativeEventEmitter,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  Platform,
+  PermissionsAndroid,
 } from "react-native";
-import { BleManager, Device } from "react-native-ble-plx";
-import { NativeModules } from "react-native";
+import { BleManager } from "react-native-ble-plx";
+import base64 from "base-64"; // Import the base-64 library
+
+const manager = new BleManager();
+
+const requestPermissions = async () => {
+  if (Platform.OS === "android" && Platform.Version >= 23) {
+    await PermissionsAndroid.requestMultiple([
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+    ]);
+  }
+};
 
 const Create = () => {
-  // const manager = new BleManager();
-  //const eventEmitter = new NativeEventEmitter(NativeModules.BleManager);
-  const [devices, setDevices] = useState([]);
-  const [scanning, setScanning] = useState(false);
-  const [connectedDevice, setConnectedDevice] = useState(false);
-  let bleManager = new BleManager();
-  const Base64 = {
-    encode: (input) => base64.encode(input),
-    decode: (input) => base64.decode(input),
-  };
-  useEffect(() => {
-    requestBluetoothPermission();
+  const [isConnected, setIsConnected] = useState(false);
+  const [message, setMessage] = useState(""); // State for the message
+  const [connectedDevice, setConnectedDevice] = useState(null); // State for the connected device
 
-    return () => {
-      stopScan();
-      bleManager.destroy();
-    };
+  useEffect(() => {
+    requestPermissions();
+
+    // Cleanup on component unmount
+    return () => manager.destroy();
   }, []);
 
-  const requestBluetoothPermission = async () => {
-    if (Platform.OS === "android") {
-      const granted = await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-      ]);
+  useEffect(() => {
+    const subscription = manager.onDeviceDisconnected(
+      "deviceIdentifier",
+      (error, device) => {
+        if (error) {
+          console.error(error);
+          return;
+        }
+        console.log(`Device disconnected: ${device.name}`);
+        setIsConnected(false);
+        setConnectedDevice(null); // Reset connected device
+      },
+    );
 
-      if (
-        granted["android.permission.ACCESS_FINE_LOCATION"] !== "granted" ||
-        granted["android.permission.BLUETOOTH_SCAN"] !== "granted" ||
-        granted["android.permission.BLUETOOTH_CONNECT"] !== "granted"
-      ) {
-        console.error("Required permissions not granted!");
-      }
+    return () => subscription.remove();
+  }, []);
+
+  const connectToDevice = async (device) => {
+    try {
+      const connected = await device.connect();
+      console.log(`Connected to ${connected.name}`);
+      setIsConnected(true);
+      setConnectedDevice(connected);
+      await connected.discoverAllServicesAndCharacteristics();
+      return connected;
+    } catch (error) {
+      console.error("Connection failed", error);
+      setIsConnected(false);
+      setConnectedDevice(null); // Reset connected device
     }
   };
 
-  const startScan = () => {
-    setScanning(true);
-    setDevices([]); // Clear the devices list before starting a new scan
-    bleManager.startDeviceScan(null, null, (error, device) => {
+  const writeCharacteristic = async (device, dataToWrite) => {
+    try {
+      // Replace these UUIDs with your actual service and characteristic UUIDs
+      const serviceUUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+      const characteristicUUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+
+      // Discover all services and characteristics for the device
+      await device.discoverAllServicesAndCharacteristics();
+
+      // Convert message to Base64
+      const base64Message = base64.encode(dataToWrite);
+
+      // Write to the characteristic
+      const characteristic =
+        await device.writeCharacteristicWithResponseForService(
+          serviceUUID,
+          characteristicUUID,
+          base64Message,
+        );
+
+      console.log("Write to characteristic successful", characteristic.value);
+    } catch (error) {
+      console.error("Error writing to characteristic:", error);
+    }
+  };
+
+  const scanAndConnect = () => {
+    manager.startDeviceScan(null, null, async (error, device) => {
       if (error) {
-        console.error("Error scanning:", error);
+        console.log(error);
         return;
       }
-      if (device) {
-        setDevices((prevDevices) => {
-          // Check if the device is already in the list
-          const deviceExists = prevDevices.some((d) => d.id === device.id);
 
-          // Only add the device if it doesn't already exist
-          if (!deviceExists) {
-            return [...prevDevices, device];
-          }
-
-          // If the device already exists, return the previous array unchanged
-          return prevDevices;
-        });
+      if (device.name === "ESP32_BLE") {
+        console.log(`Found device: ${device.name}`);
+        manager.stopDeviceScan();
+        const connectedDevice = await connectToDevice(device);
+        if (connectedDevice) {
+          await writeCharacteristic(connectedDevice, message);
+        }
       }
     });
   };
 
-  const stopScan = () => {
-    setScanning(false);
-    bleManager.stopDeviceScan();
-  };
-
-  const connectToDevice = async (device) => {
-    try {
-      const connectedDevice = await device.connect();
-      setConnectedDevice(connectedDevice);
-
-      // Discover services and characteristics
-      const discoveredDevice =
-        await connectedDevice.discoverAllServicesAndCharacteristics();
-
-      // You might want to save the discovered services and characteristics
-      setConnectedDevice(discoveredDevice);
-
-      console.log("Connected to", discoveredDevice.name);
-    } catch (error) {
-      console.error("Error connecting to device:", error);
+  const handleSendMessage = () => {
+    if (connectedDevice) {
+      writeCharacteristic(connectedDevice, message);
+    } else {
+      scanAndConnect(); // If not connected, initiate scan and connection
     }
   };
-  const sendDataToESP32 = async (data) => {
-    if (!connectedDevice) {
-      console.error("No device connected");
-      return;
-    }
-
-    try {
-      // Replace these UUIDs with your ESP32's service and characteristic UUIDs
-      const serviceUUID = "YOUR_SERVICE_UUID";
-      const characteristicUUID = "YOUR_CHARACTERISTIC_UUID";
-
-      const service = await connectedDevice
-        .services()
-        .then((services) =>
-          services.find((service) => service.uuid === serviceUUID),
-        );
-
-      if (!service) {
-        console.error("Service not found");
-        return;
-      }
-
-      const characteristic = await service
-        .characteristics()
-        .then((characteristics) =>
-          characteristics.find((c) => c.uuid === characteristicUUID),
-        );
-
-      if (!characteristic) {
-        console.error("Characteristic not found");
-        return;
-      }
-
-      // Convert the data to Base64 encoding
-      const dataBase64 = Base64.encode(data);
-
-      // Write the data to the characteristic
-      await characteristic.writeWithResponse(dataBase64);
-      console.log("Data sent successfully");
-    } catch (error) {
-      console.error("Error sending data:", error);
-    }
-  };
-
-  const renderDeviceItem = ({ item }) => (
-    <View style={{ padding: 10 }}>
-      <Text>{item.name || "Unnamed Device"}</Text>
-      <Text>{item.id}</Text>
-      <Text>{item.rssi}</Text>
-      <Button
-        title="Connect"
-        disabled={!!(connectedDevice && connectedDevice.id === item.id)}
-        onPress={() => connectToDevice(item)}
-      />
-    </View>
-  );
 
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <FlatList
-        data={devices}
-        renderItem={renderDeviceItem}
-        keyExtractor={(item) => item.id}
-        style={{ marginTop: 20 }}
+    <View style={styles.container}>
+      <TextInput
+        style={styles.textInput}
+        placeholder="Enter message"
+        value={message}
+        onChangeText={setMessage}
       />
-      <Button
-        title={scanning ? "Stop Scanning" : "Start Scanning"}
-        onPress={() => (scanning ? stopScan() : startScan())}
-      />
-      <Button
-        title="Send Data to ESP32"
-        onPress={() => sendDataToESP32("Hello ESP32!")}
-        disabled={!connectedDevice}
-      />
+      <TouchableOpacity style={styles.button} onPress={handleSendMessage}>
+        <Text style={styles.buttonText}>
+          {isConnected ? "Send Message" : "Connect and Send Message"}
+        </Text>
+      </TouchableOpacity>
+      <Text style={styles.connectedText}>
+        {isConnected ? "Connected to ESP32" : "Not Connected"}
+      </Text>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5FCFF",
+  },
+  button: {
+    backgroundColor: "#007BFF",
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 10,
+  },
+  buttonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+  },
+  textInput: {
+    height: 40,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    width: "80%",
+  },
+  connectedText: {
+    marginTop: 20,
+    fontSize: 16,
+  },
+});
 
 export default Create;
