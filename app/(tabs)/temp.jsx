@@ -217,36 +217,22 @@ const Bookmark = () => {
   };
 
   useEffect(() => {
-    const startWatchingLocation = async () => {
+    (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         console.log("Permission to access location was denied");
         return;
       }
 
-      const watchId = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, timeInterval: 5000 },
-        (location) => {
-          const { latitude, longitude } = location.coords;
-          setRegion({
-            latitude,
-            longitude,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-          });
-          // Optionally update route coordinates based on the new location
-          getRoute();
-        },
-      );
-
-      return () => {
-        watchId.remove();
+      let location = await Location.getCurrentPositionAsync({});
+      const initialRegion = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
       };
-    };
-
-    startWatchingLocation();
-
-    return () => manager.destroy();
+      setRegion(initialRegion);
+    })();
   }, []);
   const getRoute = async () => {
     if (region && destinationInput) {
@@ -274,38 +260,6 @@ const Bookmark = () => {
       }
     }
   };
-  // const getRoute = async () => {
-  //   if (region && destinationInput) {
-  //     const origin = `${region.latitude},${region.longitude}`;
-  //     const final = destinationInput;
-  //     const apiKey = "OVqa5LrGSh9Jk2oSS8gL7UeqxHBBFNublmHWFSa0"; // Replace with your actual API key
-
-  //     try {
-  //       const response = await axios.post(
-  //         `https://api.olamaps.io/routing/v1/directions?origin=${origin}&destination=${final}&api_key=${apiKey}`,
-  //       );
-
-  //       const route = response.data.routes[0];
-  //       if (route) {
-  //         const overviewPolyline = route.overview_polyline;
-  //         const points = decode(overviewPolyline);
-  //         setRouteCoordinates(points);
-
-  //         const stepPoints = route.legs.flatMap((leg) =>
-  //           leg.steps.map((step) => ({
-  //             start_location: step.start_location,
-  //             end_location: step.end_location,
-  //             maneuver: step.maneuver,
-  //             distance: step.readable_distance,
-  //           })),
-  //         );
-  //         setStepPoints(stepPoints);
-  //       }
-  //     } catch (error) {
-  //       console.error("Error fetching route:", error);
-  //     }
-  //   }
-  // };
 
   const decode = (t, e) => {
     let d = [],
@@ -380,12 +334,11 @@ const Bookmark = () => {
         />
         <Button title="Get Route" onPress={getRoute} />
       </View>
-
       <Text style={styles.connectedText}>
-        {isConnected ? "Connected to ESP32" : "Device Not Connected"}
+        {isConnected ? "Connected to ESP32" : "Not Connected"}
       </Text>
       <TouchableOpacity style={styles.button} onPress={handleSendMessage}>
-        <Text style={styles.buttonText}>Pair</Text>
+        <Text style={styles.buttonText}>Send Message</Text>
       </TouchableOpacity>
     </View>
   );
@@ -431,8 +384,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    paddingHorizontal: 20,
-    textAlign: "center",
   },
   textInput: {
     height: 40,
@@ -445,9 +396,6 @@ const styles = StyleSheet.create({
   connectedText: {
     fontSize: 16,
     marginLeft: 200,
-
-    padding: 3,
-    borderRadius: 20,
   },
 });
 

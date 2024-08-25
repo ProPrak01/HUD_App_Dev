@@ -10,6 +10,9 @@ const Profile = () => {
       <Text className="text-2xl font-psemibold text-gray-500">
         {user.username}
       </Text>
+      <Text className="text-2xl font-psemibold text-gray-500 mt-4">
+        {user.email}
+      </Text>
     </View>
   );
 };

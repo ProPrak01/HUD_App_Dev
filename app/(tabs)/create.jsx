@@ -9,23 +9,31 @@ import {
   PermissionsAndroid,
 } from "react-native";
 import { BleManager } from "react-native-ble-plx";
-import base64 from "base-64"; // Import the base-64 library
+import base64 from "base-64";
 
 const manager = new BleManager();
 
 const requestPermissions = async () => {
-  if (Platform.OS === "android" && Platform.Version >= 23) {
-    await PermissionsAndroid.requestMultiple([
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-      PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-    ]);
+  if (Platform.OS === "android") {
+    if (Platform.Version >= 31) {
+      await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      ]);
+    } else if (Platform.Version >= 23) {
+      await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+      ]);
+    }
   }
 };
 
 const Create = () => {
   const [isConnected, setIsConnected] = useState(false);
-  const [message, setMessage] = useState(""); // State for the message
-  const [connectedDevice, setConnectedDevice] = useState(null); // State for the connected device
+  const [message, setMessage] = useState("");
+  const [connectedDevice, setConnectedDevice] = useState(null);
 
   useEffect(() => {
     requestPermissions();
@@ -44,7 +52,7 @@ const Create = () => {
         }
         console.log(`Device disconnected: ${device.name}`);
         setIsConnected(false);
-        setConnectedDevice(null); // Reset connected device
+        setConnectedDevice(null);
       },
     );
 
@@ -62,31 +70,37 @@ const Create = () => {
     } catch (error) {
       console.error("Connection failed", error);
       setIsConnected(false);
-      setConnectedDevice(null); // Reset connected device
+      setConnectedDevice(null);
     }
   };
 
   const writeCharacteristic = async (device, dataToWrite) => {
     try {
-      // Replace these UUIDs with your actual service and characteristic UUIDs
       const serviceUUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
       const characteristicUUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
-      // Discover all services and characteristics for the device
       await device.discoverAllServicesAndCharacteristics();
 
-      // Convert message to Base64
       const base64Message = base64.encode(dataToWrite);
 
-      // Write to the characteristic
-      const characteristic =
-        await device.writeCharacteristicWithResponseForService(
-          serviceUUID,
-          characteristicUUID,
-          base64Message,
-        );
+      await device.writeCharacteristicWithResponseForService(
+        serviceUUID,
+        characteristicUUID,
+        base64Message,
+      );
 
-      console.log("Write to characteristic successful", characteristic.value);
+      console.log("Write to characteristic successful");
+
+      // If you want to read the value after writing:
+      const characteristic = await device.readCharacteristicForService(
+        serviceUUID,
+        characteristicUUID,
+      );
+
+      console.log(
+        "Read characteristic value after write:",
+        base64.decode(characteristic.value),
+      );
     } catch (error) {
       console.error("Error writing to characteristic:", error);
     }
@@ -114,7 +128,7 @@ const Create = () => {
     if (connectedDevice) {
       writeCharacteristic(connectedDevice, message);
     } else {
-      scanAndConnect(); // If not connected, initiate scan and connection
+      scanAndConnect();
     }
   };
 

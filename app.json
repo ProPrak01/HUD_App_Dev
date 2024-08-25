@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Aora",
-    "slug": "note-app",
-    "scheme": "aora",
+    "name": "HUD",
+    "slug": "hud",
+    "scheme": "HUD",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,12 @@
     "ios": {
       "supportsTablet": true,
       "package": "com.aora.appwrite",
-      "bundleIdentifier": "com.android.hudApp"
+      "bundleIdentifier": "com.android.hudApp",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Allow hud to connect to bluetooth devices",
+        "NSLocationWhenInUseUsageDescription": "Allow Aora to access your location",
+        "UIBackgroundModes": ["bluetooth-central", "bluetooth-peripheral"]
+      }
     },
     "android": {
       "config": {

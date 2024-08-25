@@ -76,7 +76,7 @@ const TabsLayout = () => {
               <TabIcon
                 icon={icons.plus}
                 color={color}
-                name={"IOT Device"}
+                name={"Test IOT Device"}
                 focused={focused}
               />
             ),
