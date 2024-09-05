@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "HUD",
-    "slug": "hud",
-    "scheme": "HUD",
+    "name": "Aora",
+    "slug": "aora",
+    "scheme": "aora",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -34,7 +34,10 @@
         "BLUETOOTH_ADMIN",
         "BLUETOOTH_SCAN",
         "BLUETOOTH_CONNECT",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -56,6 +59,14 @@
           "bluetoothAlwaysPermission": "Allow hud to connect to bluetooth devices"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "400b7386-12a4-4f47-ac67-016b465c7d2e"
+      }
+    }
   }
 }

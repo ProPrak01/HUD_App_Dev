@@ -57,6 +57,9 @@ const DirectionMarker = ({ coordinate, maneuver, distance }) => {
         source={getArrowImage(maneuver)}
         style={{ width: 30, height: 30 }}
       />
+
+      <Text>{maneuver}</Text>
+
       <Callout>
         <View>
           <Text>{maneuver}</Text>
@@ -82,6 +85,9 @@ const Bookmark = () => {
       if (region && stepPoints.length > 0) {
         const { latitude, longitude } = region;
 
+        console.log("Current location:", latitude, longitude);
+        console.log("Step points:", stepPoints);
+
         for (const step of stepPoints) {
           const distance = getDistance(
             latitude,
@@ -90,9 +96,16 @@ const Bookmark = () => {
             step.start_location.lng,
           );
 
+          console.log(`Distance to step ${step.maneuver}: ${distance} meters`);
+
           if (distance < 50) {
+            if (!step.maneuver) {
+              step.maneuver = "straight";
+            }
             const message = `${step.maneuver}: ${step.distance.text}`;
             setMessage(message);
+            console.log("Proximity message updated:", message);
+            handleSendMessage();
             break;
           }
         }
@@ -202,7 +215,6 @@ const Bookmark = () => {
       }
     });
   };
-
   const handleSendMessage = () => {
     if (connectedDevice) {
       writeCharacteristic(connectedDevice, message);
@@ -210,6 +222,11 @@ const Bookmark = () => {
       scanAndConnect();
     }
   };
+  // useEffect(() => {
+  //   console.log("bluetooth Message updated:", message);
+  //   handleSendMessage();
+  // }, [message, connectedDevice]);
+
   const handleMapPress = (e) => {
     const { latitude, longitude } = e.nativeEvent.coordinate;
     setDestination({ latitude, longitude });
@@ -248,64 +265,64 @@ const Bookmark = () => {
 
     return () => manager.destroy();
   }, []);
-  const getRoute = async () => {
-    if (region && destinationInput) {
-      const origin = `${region.latitude},${region.longitude}`;
-      const final = destinationInput;
-      const apiKey = "AIzaSyAjHLF4WJrkfOMBCi-Hdnit7QC_fpepzSY";
-
-      try {
-        const response = await axios.get(
-          `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${final}&key=${apiKey}`,
-        );
-        const steps = response.data.routes[0].legs[0].steps;
-        const points = steps.flatMap((step) => decode(step.polyline.points));
-        setRouteCoordinates(points);
-
-        const stepPoints = steps.map((step) => ({
-          start_location: step.start_location,
-          end_location: step.end_location,
-          maneuver: step.maneuver,
-          distance: step.distance,
-        }));
-        setStepPoints(stepPoints);
-      } catch (error) {
-        console.error(error);
-      }
-    }
-  };
   // const getRoute = async () => {
   //   if (region && destinationInput) {
   //     const origin = `${region.latitude},${region.longitude}`;
   //     const final = destinationInput;
-  //     const apiKey = "OVqa5LrGSh9Jk2oSS8gL7UeqxHBBFNublmHWFSa0"; // Replace with your actual API key
+  //     const apiKey = "AIzaSyAjHLF4WJrkfOMBCi-Hdnit7QC_fpepzSY";
 
   //     try {
-  //       const response = await axios.post(
-  //         `https://api.olamaps.io/routing/v1/directions?origin=${origin}&destination=${final}&api_key=${apiKey}`,
+  //       const response = await axios.get(
+  //         `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${final}&key=${apiKey}`,
   //       );
+  //       const steps = response.data.routes[0].legs[0].steps;
+  //       const points = steps.flatMap((step) => decode(step.polyline.points));
+  //       setRouteCoordinates(points);
 
-  //       const route = response.data.routes[0];
-  //       if (route) {
-  //         const overviewPolyline = route.overview_polyline;
-  //         const points = decode(overviewPolyline);
-  //         setRouteCoordinates(points);
-
-  //         const stepPoints = route.legs.flatMap((leg) =>
-  //           leg.steps.map((step) => ({
-  //             start_location: step.start_location,
-  //             end_location: step.end_location,
-  //             maneuver: step.maneuver,
-  //             distance: step.readable_distance,
-  //           })),
-  //         );
-  //         setStepPoints(stepPoints);
-  //       }
+  //       const stepPoints = steps.map((step) => ({
+  //         start_location: step.start_location,
+  //         end_location: step.end_location,
+  //         maneuver: step.maneuver,
+  //         distance: step.distance,
+  //       }));
+  //       setStepPoints(stepPoints);
   //     } catch (error) {
-  //       console.error("Error fetching route:", error);
+  //       console.error(error);
   //     }
   //   }
   // };
+  const getRoute = async () => {
+    if (region && destinationInput) {
+      const origin = `${region.latitude},${region.longitude}`;
+      const final = destinationInput;
+      const apiKey = "OVqa5LrGSh9Jk2oSS8gL7UeqxHBBFNublmHWFSa0"; // Replace with your actual API key
+
+      try {
+        const response = await axios.post(
+          `https://api.olamaps.io/routing/v1/directions?origin=${origin}&destination=${final}&api_key=${apiKey}`,
+        );
+
+        const route = response.data.routes[0];
+        if (route) {
+          const overviewPolyline = route.overview_polyline;
+          const points = decode(overviewPolyline);
+          setRouteCoordinates(points);
+
+          const stepPoints = route.legs.flatMap((leg) =>
+            leg.steps.map((step) => ({
+              start_location: step.start_location,
+              end_location: step.end_location,
+              maneuver: step.maneuver,
+              distance: step.readable_distance,
+            })),
+          );
+          setStepPoints(stepPoints);
+        }
+      } catch (error) {
+        console.error("Error fetching route:", error);
+      }
+    }
+  };
 
   const decode = (t, e) => {
     let d = [],
